@@ -1,16 +1,37 @@
 version: 2
 
+# Beschreibungen in Fachsprache: Sie bilden die Grundlage für die Katalogseite
+# und den KI-Chat im Repo ki-nutzung-datenkatalog.
+# meta.zustaendig = Rolle, die bei Fragen zur Zahl Auskunft gibt (frei erfundenes Beispiel).
+
 models:
   - name: fct_usage_events
     description: "Ein Eintrag je bereinigter KI-Anfrage, angereichert mit Kosten, Abteilung und Qualitätsmarkierungen. Grundlage aller Auswertungen."
+    config:
+      meta:
+        zustaendig: "BI-Team"
     columns:
       - name: event_id
         description: "Eindeutige Nummer der Anfrage."
         data_tests: [unique, not_null]
+      - name: event_ts
+        description: "Zeitpunkt der Anfrage."
       - name: event_monat
         description: "Monat der Anfrage (erster Tag des Monats)."
+      - name: user_id
+        description: "Nummer des Nutzers, der die Anfrage gestellt hat."
       - name: department_name
         description: "Abteilung des Nutzers. Unbekannt, wenn keine Zuordnung möglich ist."
+      - name: use_case_id
+        description: "Nummer des Anwendungsfalls, für den die KI genutzt wurde. Leer, wenn unbekannt."
+      - name: model_id
+        description: "Nummer des KI-Modells, das geantwortet hat."
+      - name: input_tokens
+        description: "Menge des gesendeten Textes (Eingabe), gemessen in Token. Ein Token ist ein Textbaustein, grob ein Wortteil."
+      - name: output_tokens
+        description: "Menge des gelieferten Textes (Ausgabe), gemessen in Token."
+      - name: status
+        description: "Ergebnis der Anfrage: erfolg oder fehler."
       - name: ist_erfolg
         description: "Wahr, wenn die Anfrage erfolgreich war."
       - name: kosten_eur
@@ -20,19 +41,105 @@ models:
         description: "Wahr, wenn die Anfrage einem Anwendungsfall zugeordnet ist."
       - name: ist_nach_austritt
         description: "Wahr, wenn die Anfrage nach dem Austritt des Nutzers erfolgte."
+      - name: ist_bekannte_abteilung
+        description: "Wahr, wenn die Abteilung des Nutzers in den Stammdaten bekannt ist."
 
   - name: mart_kosten_je_abteilung_monat
-    description: "Frage 1: KI-Kosten je Abteilung und Monat."
+    description: "Frage 1: Was kostet KI pro Abteilung und Monat? Fehlgeschlagene Anfragen kosten nichts, doppelte Ereignisse zählen einmal, Anfragen ohne Anwendungsfall bleiben in den Kosten."
+    config:
+      meta:
+        zustaendig: "Controlling"
+    columns:
+      - name: event_monat
+        description: "Monat, erster Tag des Monats."
+      - name: department_name
+        description: "Abteilung. Unbekannt, wenn die Abteilung des Nutzers nicht bekannt ist."
+      - name: erfolgreiche_anfragen
+        description: "Anzahl der erfolgreichen Anfragen im Monat."
+      - name: token_gesamt
+        description: "Summe aus Eingabe- und Ausgabe-Token im Monat (Textmenge)."
+      - name: kosten_eur
+        description: "Kosten in Euro, auf zwei Nachkommastellen gerundet. Berechnet aus den Einzelanfragen, nicht aus gerundeten Werten."
+
   - name: mart_aktive_nutzer_monat
-    description: "Frage 2: Aktive Nutzer je Monat und Abteilung. Aktiv heißt: mindestens eine erfolgreiche Anfrage im Monat."
+    description: "Frage 2: Aktive Nutzer je Monat und Abteilung. Aktiv heißt: mindestens eine erfolgreiche Anfrage im Monat. Nutzung nach dem Austritt zählt nicht."
+    config:
+      meta:
+        zustaendig: "KI-Verantwortliche"
+    columns:
+      - name: event_monat
+        description: "Monat, erster Tag des Monats."
+      - name: department_name
+        description: "Abteilung. Unbekannt, wenn die Abteilung des Nutzers nicht bekannt ist."
+      - name: aktive_nutzer
+        description: "Anzahl verschiedener Nutzer mit mindestens einer erfolgreichen Anfrage im Monat. Jeder Nutzer zählt einmal, egal wie oft er fragt."
+
   - name: mart_anwendungsfaelle_konformitaet
-    description: "Frage 3: Anteil der freigegebenen und vollständig dokumentierten Anwendungsfälle je Risikoklasse."
+    description: "Frage 3: Anteil der freigegebenen und vollständig dokumentierten Anwendungsfälle je Risikoklasse. Eingestellte Anwendungsfälle zählen nicht mit."
+    config:
+      meta:
+        zustaendig: "KI-Verantwortliche"
+    columns:
+      - name: risikoklasse
+        description: "Risikoklasse des Anwendungsfalls: hoch, begrenzt oder minimal."
+      - name: anzahl_anwendungsfaelle
+        description: "Anzahl der Anwendungsfälle, ohne eingestellte."
+      - name: anzahl_konform
+        description: "Anzahl der Anwendungsfälle, die freigegeben und vollständig dokumentiert sind. Fehlt die Angabe zur Dokumentation, gilt sie als nicht vollständig."
+      - name: konform_prozent
+        description: "Anteil der konformen Anwendungsfälle in Prozent, auf eine Nachkommastelle gerundet."
+
   - name: mart_kosten_je_anwendungsfall
-    description: "Frage 4: Kosten je erfolgreicher Anfrage und Anwendungsfall."
+    description: "Frage 4: Kosten je erfolgreicher Anfrage und Anwendungsfall. Nur Anwendungsfälle mit mindestens 100 Ereignissen. Anfragen ohne Anwendungsfall fehlen hier, die Summe ist deshalb kleiner als in der Kostenübersicht je Abteilung."
+    config:
+      meta:
+        zustaendig: "Controlling"
+    columns:
+      - name: use_case_name
+        description: "Name des Anwendungsfalls."
+      - name: risikoklasse
+        description: "Risikoklasse des Anwendungsfalls: hoch, begrenzt oder minimal."
+      - name: erfolgreiche_anfragen
+        description: "Anzahl der erfolgreichen Anfragen für diesen Anwendungsfall."
+      - name: kosten_eur
+        description: "Gesamtkosten des Anwendungsfalls in Euro, auf zwei Nachkommastellen gerundet."
+      - name: kosten_je_erfolgreicher_anfrage_eur
+        description: "Gesamtkosten geteilt durch die Zahl der erfolgreichen Anfragen, in Euro, auf vier Nachkommastellen gerundet."
+
   - name: mart_datenqualitaet
     description: "Frage 5: Übersicht der Datenqualitätsprüfungen mit Ampel, Erklärung, Empfehlung und Zuständigkeit."
+    config:
+      meta:
+        zustaendig: "BI-Team"
     columns:
+      - name: pruefung
+        description: "Name der Prüfung, zum Beispiel Doppelte Ereignisse."
+      - name: betroffene_zeilen
+        description: "Anzahl der Datensätze, bei denen die Prüfung anschlägt."
+      - name: geprueft
+        description: "Anzahl der geprüften Datensätze."
+      - name: anteil_prozent
+        description: "Anteil der betroffenen Datensätze in Prozent."
       - name: ampel
         description: "grün = keine Auffälligkeit, gelb = weniger als 1 % betroffen, rot = 1 % oder mehr betroffen."
+      - name: erklaerung
+        description: "Was passiert ist, in einfachen Worten."
+      - name: empfehlung
+        description: "Was zu tun ist."
+      - name: zustaendig
+        description: "Rolle, die das Problem klärt."
+
   - name: mart_datenqualitaet_details
     description: "Die einzelnen betroffenen Datensätze zu jeder Datenqualitätsprüfung."
+    config:
+      meta:
+        zustaendig: "BI-Team"
+    columns:
+      - name: pruefung
+        description: "Name der Prüfung."
+      - name: objekt_typ
+        description: "Art des betroffenen Eintrags: Ereignis oder Nutzer."
+      - name: objekt_id
+        description: "Nummer des betroffenen Eintrags."
+      - name: detail
+        description: "Kurzer Hinweis, was an diesem Eintrag auffällt."

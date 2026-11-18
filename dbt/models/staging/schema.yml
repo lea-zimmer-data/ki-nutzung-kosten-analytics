@@ -9,21 +9,34 @@ models:
     description: "Abteilungen des Unternehmens (bereinigte Stammdaten)."
     columns:
       - name: department_id
+        description: "Kürzel der Abteilung, zum Beispiel D01."
         data_tests: [unique, not_null]
+      - name: department_name
+        description: "Name der Abteilung."
+      - name: cost_center
+        description: "Kostenstelle der Abteilung, auf die Kosten gebucht werden."
 
   - name: stg_ai_models
     description: "KI-Modelle mit ihren Preisen je 1.000 Eingabe- und Ausgabe-Token."
     columns:
       - name: model_id
+        description: "Nummer des KI-Modells."
         data_tests: [unique, not_null]
+      - name: model_name
+        description: "Name des KI-Modells."
+      - name: price_per_1k_input_eur
+        description: "Preis in Euro für 1.000 Token gesendeten Text (Eingabe)."
+      - name: price_per_1k_output_eur
+        description: "Preis in Euro für 1.000 Token gelieferten Text (Ausgabe)."
 
   - name: stg_users
     description: "Nutzer mit Abteilung, Eintritts- und Austrittsdatum."
     columns:
       - name: user_id
+        description: "Nummer des Nutzers."
         data_tests: [unique, not_null]
       - name: department_id
-        description: "Unbekannte Abteilungen (z. B. D99) sind ein bewusst eingebautes Datenproblem."
+        description: "Kürzel der Abteilung des Nutzers. Unbekannte Abteilungen (z. B. D99) sind ein bewusst eingebautes Datenproblem."
         data_tests:
           - relationships:
               arguments:
@@ -31,17 +44,33 @@ models:
                 field: department_id
               config:
                 severity: warn
+      - name: hired_date
+        description: "Eintrittsdatum des Nutzers."
+      - name: left_date
+        description: "Austrittsdatum des Nutzers. Leer, wenn die Person noch im Unternehmen ist."
 
   - name: stg_use_cases
     description: "Anwendungsfälle der KI mit Risikoklasse, Status und Dokumentationsstand."
     columns:
       - name: use_case_id
+        description: "Nummer des Anwendungsfalls."
         data_tests: [unique, not_null]
       - name: risk_class
+        description: "Wie heikel der Anwendungsfall ist: minimal, begrenzt oder hoch."
         data_tests:
           - accepted_values:
               arguments:
                 values: ['minimal', 'begrenzt', 'hoch']
+      - name: use_case_name
+        description: "Name des Anwendungsfalls, also wofür die KI genutzt wird."
+      - name: department_id
+        description: "Kürzel der Abteilung, die den Anwendungsfall verantwortet."
+      - name: status
+        description: "Stand des Anwendungsfalls: pilot, freigegeben oder eingestellt."
+      - name: approved_date
+        description: "Datum der Freigabe. Leer bei Pilotprojekten."
+      - name: documentation_complete
+        description: "Wahr, wenn die Dokumentation vollständig ist."
 
   - name: stg_usage_events
     description: "Jede KI-Anfrage genau einmal (Duplikate entfernt), mit Token-Mengen und Status."
@@ -50,13 +79,26 @@ models:
         description: "Nach dem Entfernen der Duplikate eindeutig."
         data_tests: [unique, not_null]
       - name: use_case_id
-        description: "Fehlende Zuordnungen sind ein bewusst eingebautes Datenproblem."
+        description: "Nummer des Anwendungsfalls, für den die KI genutzt wurde. Fehlende Zuordnungen sind ein bewusst eingebautes Datenproblem."
         data_tests:
           - not_null:
               config:
                 severity: warn
       - name: status
+        description: "Ergebnis der Anfrage: erfolg oder fehler."
         data_tests:
           - accepted_values:
               arguments:
                 values: ['erfolg', 'fehler']
+      - name: user_id
+        description: "Nummer des Nutzers, der die Anfrage gestellt hat."
+      - name: event_ts
+        description: "Zeitpunkt der Anfrage."
+      - name: model_id
+        description: "Nummer des KI-Modells, das geantwortet hat."
+      - name: input_tokens
+        description: "Menge des gesendeten Textes (Eingabe), gemessen in Token."
+      - name: output_tokens
+        description: "Menge des gelieferten Textes (Ausgabe), gemessen in Token."
+      - name: latency_ms
+        description: "Wartezeit bis zur Antwort in Millisekunden (1.000 Millisekunden sind eine Sekunde)."
