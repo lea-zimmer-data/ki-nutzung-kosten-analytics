@@ -49,6 +49,8 @@ Die Pipeline macht sie sichtbar (zwei als Test-Warnungen, alle vier in `MART_DAT
 
 **Voraussetzungen:** Python (getestet mit 3.12), ein Snowflake-Konto (ein Testkonto genügt) und Git.
 
+> **Hinweis:** Mein eigenes Snowflake-Testkonto war befristet und läuft Ende November 2026 aus. Das Projekt bleibt hier les- und nachbaubar. Die Pipeline läuft aber nur mit deinem eigenen Konto: Lege dir ein Snowflake-Testkonto an und folge den Schritten unten.
+
 ```bash
 # 1. Repository holen
 git clone https://github.com/lea-zimmer-data/ki-nutzung-kosten-analytics.git
@@ -109,6 +111,7 @@ Ich habe das Projekt im Dialog mit **Claude** (Anthropic) im Chat gebaut, mit Vi
 
 - Die Daten sind synthetisch. Die Preise und Modelle sind erfunden und bilden keinen realen Anbieter ab.
 - Es gibt bisher keine automatische Terminplanung (zum Beispiel mit Airflow). Die Pipeline wird per Skript gestartet.
+- Die Pipeline läuft auf Snowflake. Da mein Testkonto befristet war, ist sie nicht dauerhaft online erreichbar. Zum Ausprobieren braucht es ein eigenes Konto.
 - Das Projekt ist als Lern- und Vorzeigeprojekt gedacht, nicht als fertiges Produkt.
 
 ## Lizenz
